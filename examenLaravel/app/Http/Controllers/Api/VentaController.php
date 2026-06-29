@@ -63,13 +63,40 @@ class VentaController extends Controller
         return response()->json($venta);
     }
 
+    /**
+     * Actualiza solo los datos de cabecera de la venta (cliente, fecha).
+     * Para modificar los productos de una venta, lo correcto es anularla
+     * (destroy) y registrar una nueva, ya que eso mantiene el stock consistente.
+     */
     public function update(Request $request, string $id)
     {
-        //
+        $venta = Venta::findOrFail($id);
+
+        $datos = $request->validate([
+            'cliente_id' => 'sometimes|exists:clientes,id',
+            'fecha' => 'sometimes|date',
+        ]);
+
+        $venta->update($datos);
+        return response()->json($venta->load('cliente', 'detalles.producto'));
     }
 
+    /**
+     * Anula la venta: devuelve el stock de cada producto vendido
+     * y luego elimina la venta (sus detalles se borran en cascada).
+     */
     public function destroy(string $id)
     {
-        //
+        DB::transaction(function () use ($id) {
+            $venta = Venta::with('detalles')->findOrFail($id);
+
+            foreach ($venta->detalles as $detalle) {
+                $detalle->producto->increment('stock', $detalle->cantidad);
+            }
+
+            $venta->delete();
+        });
+
+        return response()->json(null, 204);
     }
 }
