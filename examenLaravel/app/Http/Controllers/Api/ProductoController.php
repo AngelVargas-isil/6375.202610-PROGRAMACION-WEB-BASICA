@@ -8,44 +8,51 @@ use Illuminate\Http\Request;
 
 class ProductoController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
-        return Producto::all();
+        return Producto::with(['categoria', 'proveedor'])->get();
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
-        $producto = Producto::create($request->all());
+        $datos = $request->validate([
+            'nombre' => 'required|string|max:255',
+            'precio' => 'required|numeric|min:0',
+            'stock' => 'required|integer|min:0',
+            'categoria_id' => 'required|exists:categorias,id',
+            'proveedor_id' => 'nullable|exists:proveedores,id',
+        ]);
+
+        $producto = Producto::create($datos);
         return response()->json($producto, 201);
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(string $id)
     {
-        //
+        $producto = Producto::with(['categoria', 'proveedor'])->findOrFail($id);
+        return response()->json($producto);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, string $id)
     {
-        //
+        $producto = Producto::findOrFail($id);
+
+        $datos = $request->validate([
+            'nombre' => 'sometimes|string|max:255',
+            'precio' => 'sometimes|numeric|min:0',
+            'stock' => 'sometimes|integer|min:0',
+            'categoria_id' => 'sometimes|exists:categorias,id',
+            'proveedor_id' => 'nullable|exists:proveedores,id',
+        ]);
+
+        $producto->update($datos);
+        return response()->json($producto);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(string $id)
     {
-        //
+        $producto = Producto::findOrFail($id);
+        $producto->delete();
+        return response()->json(null, 204);
     }
 }
